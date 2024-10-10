@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trajectory Evaluation</title>
+</head>
+<body>
+    <h1>Trajectory Evaluation</h1>
+
+    <!-- Display the plot -->
+    <img src="data:image/png;base64,{{ plot_image }}" alt="Trajectory Plot">
+
+    <h2>Rate the Modified Trajectories</h2>
+    <form action="/submit" method="POST">
+        <h3>Method 1</h3>
+        <input type="radio" name="method1_rating" value="1"> Completely wrong<br>
+        <input type="radio" name="method1_rating" value="2"> Somewhat wrong<br>
+        <input type="radio" name="method1_rating" value="3"> Neutral<br>
+        <input type="radio" name="method1_rating" value="4"> Somewhat correct<br>
+        <input type="radio" name="method1_rating" value="5"> Completely correct<br>
+
+        <h3>Method 2</h3>
+        <input type="radio" name="method2_rating" value="1"> Completely wrong<br>
+        <input type="radio" name="method2_rating" value="2"> Somewhat wrong<br>
+        <input type="radio" name="method2_rating" value="3"> Neutral<br>
+        <input type="radio" name="method2_rating" value="4"> Somewhat correct<br>
+        <input type="radio" name="method2_rating" value="5"> Completely correct<br>
+
+        <h3>Which Method Was Better?</h3>
+        <input type="radio" name="comparison" value="1"> Method 1 was much better<br>
+        <input type="radio" name="comparison" value="2"> Method 1 was a bit better<br>
+        <input type="radio" name="comparison" value="3"> Both methods were the same<br>
+        <input type="radio" name="comparison" value="4"> Method 2 was a bit better<br>
+        <input type="radio" name="comparison" value="5"> Method 2 was much better<br>
+
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
