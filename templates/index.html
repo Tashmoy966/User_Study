@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Trajectory Evaluation</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>  <!-- Include Plotly JS -->
+    <style>
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>3D Trajectory Evaluation</h1>
+     <!-- Interactive 3D Plot -->
+    <!-- <div id="plot"></div> -->
+
+    <!-- Plots Section -->
+    <div class="plots">
+        <div id="plot-3d"></div>
+        <div id="plot-2d"></div>
+    </div>
+    <script>
+        var plotData3D = {{ plot_json | safe }};
+        var plotData2D = {{ vel_json | safe }};
+        
+        Plotly.newPlot('plot-3d', plotData3D.data, plotData3D.layout);
+        Plotly.newPlot('plot-2d', plotData2D.data, plotData2D.layout);
+    </script>
+    <!-- <script>
+        var plot_data = {{ plot_json|safe }};  // Load the Plotly plot data
+        Plotly.newPlot('plot', plot_data.data, plot_data.layout);  // Render the Plotly plot
+    </script> -->
+     <!-- JavaScript to render the plot when the page loads -->
+    <!-- <script>
+        window.onload = function() {
+            // Ensure plot_json is available when the page loads
+            var plotData = {{ plot_json | safe }};
+            Plotly.newPlot('plot', plotData.data, plotData.layout);
+        };
+    </script> -->
+    <!-- <img src="data:image/png;base64,{{ plot_image }}" alt="3D Trajectory Plot"> -->
+    <!-- Instruction Section -->
+    <h2>User Instructions</h2>
+    <p>{{ instruction_text }}</p>
+    <h2>High Level Plan</h2>
+    <ul>
+        {% for plan in hlp_text %}
+        <li>{{ plan }}</li>
+        {% endfor %}
+    </ul>
+    
+    <form method="post" action="/submit">
+        <h3>Rate Method:</h3>
+        <input type="radio" name="method1_rating" value="1"> 1) Completely wrong<br>
+        <input type="radio" name="method1_rating" value="2"> 2) Somewhat wrong<br>
+        <input type="radio" name="method1_rating" value="3"> 3) Neutral<br>
+        <input type="radio" name="method1_rating" value="4"> 4) Somewhat correct<br>
+        <input type="radio" name="method1_rating" value="5"> 5) Completely correct<br>
+        
+        <!-- <h3>Rate Method 2:</h3>
+        <input type="radio" name="method2_rating" value="1"> 1) Completely wrong<br>
+        <input type="radio" name="method2_rating" value="2"> 2) Somewhat wrong<br>
+        <input type="radio" name="method2_rating" value="3"> 3) Neutral<br>
+        <input type="radio" name="method2_rating" value="4"> 4) Somewhat correct<br>
+        <input type="radio" name="method2_rating" value="5"> 5) Completely correct<br> -->
+
+        <!-- <h3>Which method was better?</h3>
+        <input type="radio" name="comparison" value="1"> 1) Method 1 was much better<br>
+        <input type="radio" name="comparison" value="2"> 2) Method 1 was a bit better<br>
+        <input type="radio" name="comparison" value="3"> 3) Both methods were the same<br>
+        <input type="radio" name="comparison" value="4"> 4) Method 2 was a bit better<br>
+        <input type="radio" name="comparison" value="5"> 5) Method 2 was much better<br> -->
+        <button type="submit">Submit Response</button> 
+    </form>
+    
+    <form method="post" action="/previous" style="display:inline;">
+        <button type="submit">Previous</button>
+    </form>
+    
+    <form method="post" action="/next" style="display:inline;">
+        <button type="submit">Next</button>
+    </form>
+    {% if error_message %}
+        <p class="error">{{ error_message }}</p>  <!-- Display error message -->
+    {% endif %}
+
+    <footer>
+        <p>Trajectory {{ current_index + 1 }} of {{ num_trajectories }}</p>
+    </footer>
+</body>
+</html>
