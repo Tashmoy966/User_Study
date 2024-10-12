@@ -78,11 +78,17 @@ import base64
 import plotly.graph_objs as go
 import plotly
 import json
-
+from scipy.interpolate import CubicSpline
 import secrets
 
 # Generate a secure random session key
 session_key = secrets.token_hex(16)  # 32 characters in hexadecimal (128 bits)
+def smoothned_data(val,num_points=80):
+   t = np.arange(len(val))
+   spline_val = CubicSpline(t, val)
+   t_new = np.linspace(0, len(val) - 1, num=num_points)
+   val_smooth = spline_val(t_new)
+   return val_smooth
 def get_json_data(trajectory_path):
     with open(trajectory_path, 'r') as file:
         data = json.load(file)
@@ -139,7 +145,7 @@ hlp=["Shift the goal position left.",
 
 # Initialize DataFrame to store responses
 response_data = pd.DataFrame(columns=["Method", "Rating", "Comparison"])
-print(original_trajectories)
+# print(original_trajectories)
 # Function to create a plot and return its base64 encoding
 def create_3d_plot(index):
     # fig = plt.figure(figsize=(6, 5))
@@ -170,18 +176,19 @@ def create_3d_plot(index):
   # Assign the vel values as colors
     #trace_original = 
     fig.add_trace(go.Scatter3d(
-        x=original_trajectories[:, 0], 
-        y=original_trajectories[:, 1], 
-        z=original_trajectories[:, 2],
+        x=smoothned_data(original_trajectories[:, 0]), 
+        y=smoothned_data(original_trajectories[:, 1]), 
+        z=smoothned_data(original_trajectories[:, 2]),
         
         mode='lines+markers',
         name='Original Trajectory',
         marker=dict(
         size=5,
-        color=original_trajectories[:, 3],  # Assign colors based on z values
-        colorscale=colorscale,  # Set the color scale
-        colorbar=dict(title='Vel Value'),  # Color bar title
-        line=dict(color='blue', width=4)),
+        color=smoothned_data(original_trajectories[:, 3]),  # Assign colors based on z values
+        colorscale='BrBG',  # Set the color scale
+        colorbar=dict(title='Vel Value'),
+        opacity=0.8),  # Color bar title
+        # line=dict(color='blue', width=4)),
         # line=dict(color='blue', width=4)
     ))
 
@@ -195,9 +202,10 @@ def create_3d_plot(index):
         marker=dict(
         size=5,
         color=method1_trajectories[index][:, 3],  # Assign colors based on z values
-        colorscale=colorscale,  # Set the color scale
-        colorbar=dict(title='Z Value'),  # Color bar title
-        line=dict(color='red', width=4)),
+        colorscale='RdBu',  # Set the color scale
+        colorbar=dict(title='Z Value'),
+        opacity=0.8),  # Color bar title
+        # line=dict(color='red', width=4)),
         # line=dict(color='green', width=4)
     ))
     # Add object points to the 3D plot with different colors
@@ -209,15 +217,29 @@ def create_3d_plot(index):
         mode='markers',
         text=['{}'.format(point["name"]) for point in original_data[0]["objects"]],
         textposition='top center',  # Position of the text relative to the markers
-        hoverinfo='skip',
+        hoverinfo='text',
         name='Object Points',
         marker=dict(size=8, color=object_colors, symbol='circle')
     ))
+
+     #Add annotations for the object names
+    annotations = []
+    for point in original_data[0]["objects"]:
+        annotations.append(dict(
+            x=object_points[:, 0],
+            y=object_points[:, 1],
+            z=object_points[:, 2],
+            text=point["name"],
+            showarrow=False,
+            font=dict(size=1, color='black'),
+            xanchor='auto'
+        ))
 
     # Define the layout of the plot
     layout = go.Layout(
         title=f"3D Trajectory Comparison {index + 1}/{num_trajectories}",
         scene=dict(
+            # annotations=annotations,
             xaxis=dict(title='X-axis'),
             yaxis=dict(title='Y-axis'),
             zaxis=dict(title='Z-axis')
@@ -238,8 +260,8 @@ def create_2d_plot(index):
     
     # Plotting the original trajectory
     fig.add_trace(go.Scatter(
-        x=[i+1 for i in range(len(original_trajectories[:, 3]))],
-        y=original_trajectories[:, 3],
+        x=[i+1 for i in range(len(smoothned_data(original_trajectories[:, 3])))],
+        y=smoothned_data(original_trajectories[:, 3]-1),
         mode='lines+markers',
         name='Original Trajectory',
         line=dict(color='blue'),
