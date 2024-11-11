@@ -80,6 +80,27 @@ import plotly
 import json
 from scipy.interpolate import CubicSpline
 import secrets
+import sqlite3
+
+# Function to initialize the database
+def init_db():
+    conn = sqlite3.connect('user_responses.db')
+    c = conn.cursor()
+    
+    # Create table if it doesn't exist
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trajectory_index INTEGER,
+            method1_rating INTEGER
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+# Call this function once to create the table
+init_db()
 
 # Generate a secure random session key
 session_key = secrets.token_hex(16)  # 32 characters in hexadecimal (128 bits)
@@ -141,7 +162,8 @@ inst=["Go higher",
 "Go faster when you are in the middle of the trajectory."]
 hlp=["Shift the goal position left.",
     "Keep the start position same",
-    "modify the points in the middle to ensure a gradual change in the trajectory preserving the shape of the trajectory}"]
+    "modify the points in the middle to ensure a gradual change in the trajectory preserving the shape of the trajectory"]
+llm_used=["gpt-4o","llama-3.1","gemeni","calude","gpt-4o"]
 
 # Initialize DataFrame to store responses
 response_data = pd.DataFrame(columns=["Method", "Rating", "Comparison"])
@@ -316,10 +338,11 @@ def display_trajectory():
     # plot_image = create_3d_plot(current_index)
     # return render_template('index.html', plot_image=plot_image, current_index=current_index, num_trajectories=num_trajectories)
     instruction_text=inst[current_index]
+    llm_names=llm_used[current_index]
     hlp_text=hlp
     plot_json = create_3d_plot(current_index)
     vel_json=create_2d_plot(current_index)
-    return render_template('index.html', plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json)
+    return render_template('index.html', llm_names=llm_names,plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json)
 
 
 @app.route('/submit', methods=['GET', 'POST'])
@@ -330,6 +353,19 @@ def submit():
     # comparison = request.form.get('comparison')
 
     if method1_rating :  #and method2_rating and comparison
+        # Connect to the database
+        conn = sqlite3.connect('user_responses.db')
+        c = conn.cursor()
+
+        # Insert the data into the responses table
+        c.execute('''
+            INSERT INTO responses (trajectory_index, method1_rating)
+            VALUES (?, ?)
+        ''', (current_index, method1_rating))
+
+        # Commit and close the connection
+        conn.commit()
+        conn.close()
         global response_data
         response_data.loc[len(response_data)] = ["Method 1", method1_rating, ""]
         # response_data.loc[len(response_data)] = ["Method 2", method2_rating, ""]
@@ -343,9 +379,10 @@ def submit():
         error_message = "Please provide all ratings and comparison."
         instruction_text=inst[current_index]
         hlp_text=hlp
+        llm_names=llm_used[current_index]
         vel_json=create_2d_plot(current_index)
         plot_json = create_3d_plot(current_index)
-        return render_template('index.html', plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message)
+        return render_template('index.html', llm_names=llm_names, plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message)
         #return index(error_message)
 
 @app.route('/thanks')

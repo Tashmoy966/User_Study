@@ -16,6 +16,10 @@
     <h1>3D Trajectory Evaluation</h1>
      <!-- Interactive 3D Plot -->
     <!-- <div id="plot"></div> -->
+    <div>
+        <!-- <p><strong>LLM Used:</strong> {{ llm_names }}</p> llm_name will be dynamically passed from Flask -->
+         <h2>LLM Used : {{ llm_names }}</h2>
+    </div>
 
     <!-- Plots Section -->
     <div class="plots">
@@ -47,7 +51,7 @@
     <p>{{ instruction_text }}</p>
     <h2>High Level Plan</h2>
     <ul>
-        {% for plan in hlp_text %}
+        {% for plan in hlp_text %} 
         <li>{{ plan }}</li>
         {% endfor %}
     </ul>
