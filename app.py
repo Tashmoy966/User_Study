@@ -232,7 +232,7 @@ def create_3d_plot(index):
         mode='lines+markers',
         name='Original Trajectory',
         marker=dict(
-        size=5,
+        size=3,
         color=smoothned_data(original_trajectories[:, 3]),  # Assign colors based on z values
         colorscale='BrBG',  # Set the color scale
         colorbar=dict(title='Vel Value'),
@@ -249,7 +249,7 @@ def create_3d_plot(index):
         mode='lines+markers',
         name='Modefied Trajectory',
         marker=dict(
-        size=5,
+        size=3,
         color=method1_trajectories[index][:, 3],  # Assign colors based on z values
         colorscale='RdBu',  # Set the color scale
         colorbar=dict(title='Z Value',x=0.9),
@@ -264,10 +264,10 @@ def create_3d_plot(index):
             x=[obj_data[0]],
             y=[obj_data[1]],
             z=[obj_data[2]],
-            mode='markers',
+            mode='markers+text',
             text=name,
             textposition='top center',  # Position of the text relative to the markers
-            hoverinfo='text',
+            # hoverinfo='text',
             name=name,
             marker=dict(size=8, color=color, symbol='circle')
         ))
@@ -277,10 +277,10 @@ def create_3d_plot(index):
             x=[point[0]],
             y=[point[1]],
             z=[point[2]],
-            mode='markers',
+            mode='markers+text',
             text=text,
             textposition='top center',  # Position of the text relative to the markers
-            hoverinfo='text',
+            # hoverinfo='text',
             name=text,
             marker=dict(size=8, color=color, symbol=symbol)
         ))
@@ -313,7 +313,7 @@ def create_3d_plot(index):
         y=0.5,  # Vertical position of the legend (0 to 1, bottom to top)
         bgcolor='rgba(255, 255, 255, 0.5)',  # Background color with some transparency
         bordercolor='black',
-        borderwidth=1
+        borderwidth=2
     )
     )
 
