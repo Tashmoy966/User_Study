@@ -5,10 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Trajectory Evaluation</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>  <!-- Include Plotly JS -->
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.2"> -->
     <style>
         .error {
             color: red;
             font-weight: bold;
+        }
+    </style>
+    <style>
+        body {
+            zoom: 1.0; /* Works for Chrome, Edge, etc. */
+        }
+    </style>
+
+    <style>
+        .scroll-indicator {
+            text-align: center;
+            position: fixed; /* Stays at the bottom of the viewport */
+            bottom: 20px; /* Adjust this to change the distance from the bottom */
+            width: 100%;
+            font-size: 16px; /* Text size for the message */
+            color: #555; /* Text color */
+            z-index: 1000; /* Keeps it above other elements */
+        }
+
+        .scroll-indicator p {
+            margin: 0; /* Remove default margins */
+            font-weight: bold;
+        }
+
+        .arrow-down {
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 15px solid #555; /* Downward pointing arrow */
+            margin: 5px auto; /* Center the arrow */
+            animation: bounce 1s infinite; /* Animation for a bouncing effect */
+        }
+
+        /* Bouncing animation */
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0) ;
+            }
+            50% {
+                transform: translateY(10px) ;
+            }
+        }
+        /* Footer Styling */
+        /* footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #777;
+        } */
+
+        /* Code Box Styling */
+        .code-container {
+            display: none; /* Hidden by default */
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            white-space: pre; /* Preserve whitespace and line breaks */
+            overflow-x: auto; /* Horizontal scroll if needed */
+        }
+
+        .show-code-button {
+            display: block;
+            margin: 10px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -47,15 +118,47 @@
     </script> -->
     <!-- <img src="data:image/png;base64,{{ plot_image }}" alt="3D Trajectory Plot"> -->
     <!-- Instruction Section -->
+    <!-- <h2>User Instructions</h2>
+    <p>{{ instruction_text }}</p> -->
+     <!-- Instruction Section -->
     <h2>User Instructions</h2>
-    <p>{{ instruction_text }}</p>
+    <ul>
+        {% if instruction_text is string %}
+            <!-- Display the instruction as a single text if it is a string -->
+            <p><strong>Zero Shot Instruction :</strong></p>
+            <ul>
+                <p>{{ instruction_text }}</p>
+            </ul>
+        {% elif instruction_text and instruction_text|length > 0 %}
+            <!-- Display the first element as General Instruction -->
+            <p><strong>Zero Shot Instruction :</strong></p>
+            <ul>
+                <p>{{ instruction_text[0] }}</p>
+            </ul>
+            {% if instruction_text|length > 1 %}
+                <!-- Display the remaining elements as Feedback Instructions -->
+                    <p><strong>Feedback Instructions:</strong></p>
+                    <ul>
+                        {% for instruction in instruction_text[1:] %}
+                            <li>{{ instruction }}</li>
+                        {% endfor %}
+                    </ul>
+            {% endif %}
+        {% endif %}
+    </ul>
     <h2>High Level Plan</h2>
     <ul>
         {% for plan in hlp_text %} 
         <li>{{ plan }}</li>
         {% endfor %}
     </ul>
-    
+
+    <!-- "See Generated Code" Button and Code Box -->
+    <button class="show-code-button" onclick="toggleCode()">See Generated Code</button>
+    <div class="code-container" id="code-container">
+        <code>{{ generated_code }}</code>
+    </div>
+
     <form method="post" action="/submit">
         <h3>Rate Method:</h3>
         <input type="radio" name="method1_rating" value="1"> 1) Completely wrong<br>
@@ -94,5 +197,34 @@
     <footer>
         <p>Trajectory {{ current_index + 1 }} of {{ num_trajectories }}</p>
     </footer>
+
+    <div class="scroll-indicator">
+        <p>Scroll Down for More</p>
+        <div class="arrow-down"></div>
+    </div>
+    <!-- JavaScript for Button and Code Box Logic -->
+    <script>
+        function toggleCode() {
+            var codeContainer = document.getElementById('code-container');
+            if (codeContainer.style.display === 'none' || codeContainer.style.display === '') {
+                codeContainer.style.display = 'block'; // Show the code
+            } else {
+                codeContainer.style.display = 'none'; // Hide the code
+            }
+        }
+    </script>
+    <script>
+        // Function to check if the user has scrolled to the bottom
+        window.onscroll = function() {
+            var scrollIndicator = document.querySelector('.scroll-indicator');
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+                // User has reached the bottom of the page, hide the indicator
+                scrollIndicator.style.display = 'none';
+            } else {
+                // User has not reached the bottom, show the indicator
+                scrollIndicator.style.display = 'block';
+            }
+        };
+    </script>
 </body>
 </html>

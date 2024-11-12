@@ -87,12 +87,16 @@ def init_db():
     conn = sqlite3.connect('user_responses.db')
     c = conn.cursor()
     
+    # Drop the table if it already exists
+    c.execute('DROP TABLE IF EXISTS responses')
+
     # Create table if it doesn't exist
     c.execute('''
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             trajectory_index INTEGER,
-            method1_rating INTEGER
+            method1_rating INTEGER,
+            llm_name TEXT  
         )
     ''')
     
@@ -156,7 +160,7 @@ object_colors = ['red',
 'beige']  # List of colors for each object point
 
 inst=["Go higher",
-"Go lower",
+["Go lower","Go lower towards left","Keep the start and goal same"],
 "Go to the left",
 "Go to the right",
 "Go faster when you are in the middle of the trajectory."]
@@ -164,7 +168,29 @@ hlp=["Shift the goal position left.",
     "Keep the start position same",
     "modify the points in the middle to ensure a gradual change in the trajectory preserving the shape of the trajectory"]
 llm_used=["gpt-4o","llama-3.1","gemeni","calude","gpt-4o"]
-
+generated_code="""
+    # Python program for
+# Creation of Arrays
+import numpy as np
+ 
+# Creating a rank 1 Array
+arr = np.array([1, 2, 3])
+print("Array with Rank 1: \n",arr)
+ 
+# Creating a rank 2 Array
+arr = np.array([[1, 2, 3],
+                [4, 5, 6]])
+print("Array with Rank 2: \n", arr)
+ 
+# Creating an array from tuple
+arr = np.array((1, 3, 2))
+print("\nArray created using "
+      "passed tuple:\n", arr)
+    """
+generated_code1=[
+        "\nbanana_position = detect_objects('banana')\nif banana_position is not None:\n    trajectory = get_trajectory()\n    modified_trajectory = []\n    min_distance = 0.2\n    for point in trajectory:\n        x, y, z, velocity = point\n        distance = ((x - banana_position[0]) ** 2 + (y - banana_position[1]\n            ) ** 2 + (z - banana_position[2]) ** 2) ** 0.5\n        if distance < min_distance:\n            direction_vector = [x - banana_position[0], y - banana_position\n                [1], z - banana_position[2]]\n            norm = (direction_vector[0] ** 2 + direction_vector[1] ** 2 + \n                direction_vector[2] ** 2) ** 0.5\n            direction_vector = [(component / norm) for component in\n                direction_vector]\n            x = banana_position[0] + direction_vector[0] * min_distance\n            y = banana_position[1] + direction_vector[1] * min_distance\n            z = banana_position[2] + direction_vector[2] * min_distance\n        modified_trajectory.append((x, y, z, velocity))\n    for i in range(1, len(modified_trajectory) - 1):\n        prev_point = modified_trajectory[i - 1]\n        next_point = modified_trajectory[i + 1]\n        current_point = modified_trajectory[i]\n        smoothed_x = (prev_point[0] + current_point[0] + next_point[0]) / 3\n        smoothed_y = (prev_point[1] + current_point[1] + next_point[1]) / 3\n        smoothed_z = (prev_point[2] + current_point[2] + next_point[2]) / 3\n        modified_trajectory[i\n            ] = smoothed_x, smoothed_y, smoothed_z, current_point[3]\nelse:\n    modified_trajectory = get_trajectory()\n",
+        "banana_position = detect_objects('banana')\nif banana_position is not None:\n    trajectory = get_trajectory()\n    modified_trajectory = []\n    min_distance = 0.2\n    speed_reduction_factor = 0.8\n    for point in trajectory:\n        x, y, z, velocity = point\n        distance = ((x - banana_position[0]) ** 2 + (y - banana_position[1]\n            ) ** 2 + (z - banana_position[2]) ** 2) ** 0.5\n        if distance < min_distance:\n            direction_vector = [x - banana_position[0], y - banana_position\n                [1], z - banana_position[2]]\n            norm = (direction_vector[0] ** 2 + direction_vector[1] ** 2 + \n                direction_vector[2] ** 2) ** 0.5\n            direction_vector = [(component / norm) for component in\n                direction_vector]\n            x = banana_position[0] + direction_vector[0] * min_distance\n            y = banana_position[1] + direction_vector[1] * min_distance\n            z = banana_position[2] + direction_vector[2] * min_distance\n            velocity *= speed_reduction_factor\n        modified_trajectory.append((x, y, z, velocity))\n    for i in range(1, len(modified_trajectory) - 1):\n        prev_point = modified_trajectory[i - 1]\n        next_point = modified_trajectory[i + 1]\n        current_point = modified_trajectory[i]\n        smoothed_x = (prev_point[0] + current_point[0] + next_point[0]) / 3\n        smoothed_y = (prev_point[1] + current_point[1] + next_point[1]) / 3\n        smoothed_z = (prev_point[2] + current_point[2] + next_point[2]) / 3\n        modified_trajectory[i\n            ] = smoothed_x, smoothed_y, smoothed_z, current_point[3]\nelse:\n    modified_trajectory = get_trajectory()\n"
+    ]
 # Initialize DataFrame to store responses
 response_data = pd.DataFrame(columns=["Method", "Rating", "Comparison"])
 # print(original_trajectories)
@@ -192,7 +218,8 @@ def create_3d_plot(index):
     # return image_base64
     # Create traces for the original trajectory and method 1 trajectory
     # Create a color scale based on the z-values
-
+    st_gl_points=np.array([original_trajectories[0,:],original_trajectories[-1,:],method1_trajectories[index][0,:],method1_trajectories[index][-1,:]])
+    st_gl_text=["Original Start","Original End","Modefied Start","Modefied End"]
     fig = go.Figure()
     colorscale = 'Viridis'  # Choose a color scale
   # Assign the vel values as colors
@@ -220,29 +247,43 @@ def create_3d_plot(index):
         y=method1_trajectories[index][:, 1], 
         z=method1_trajectories[index][:, 2],
         mode='lines+markers',
-        name='Method 1',
+        name='Modefied Trajectory',
         marker=dict(
         size=5,
         color=method1_trajectories[index][:, 3],  # Assign colors based on z values
         colorscale='RdBu',  # Set the color scale
-        colorbar=dict(title='Z Value'),
+        colorbar=dict(title='Z Value',x=0.9),
         opacity=0.8),  # Color bar title
         # line=dict(color='red', width=4)),
         # line=dict(color='green', width=4)
     ))
     # Add object points to the 3D plot with different colors
-    #object_data = 
-    fig.add_trace(go.Scatter3d(
-        x=object_points[:, 0],
-        y=object_points[:, 1],
-        z=object_points[:, 2],
-        mode='markers',
-        text=['{}'.format(point["name"]) for point in original_data[0]["objects"]],
-        textposition='top center',  # Position of the text relative to the markers
-        hoverinfo='text',
-        name='Object Points',
-        marker=dict(size=8, color=object_colors, symbol='circle')
-    ))
+    object_names = [point["name"] for point in original_data[0]["objects"]]
+    for obj_data,name,color in zip(object_points,object_names,object_colors):
+        fig.add_trace(go.Scatter3d(
+            x=[obj_data[0]],
+            y=[obj_data[1]],
+            z=[obj_data[2]],
+            mode='markers',
+            text=name,
+            textposition='top center',  # Position of the text relative to the markers
+            hoverinfo='text',
+            name=name,
+            marker=dict(size=8, color=color, symbol='circle')
+        ))
+    # Add start and goal marker
+    for point,text,color,symbol in zip(st_gl_points,st_gl_text,["green","red","cyan","orange"],["circle","diamond","circle","diamond"]):
+        fig.add_trace(go.Scatter3d(
+            x=[point[0]],
+            y=[point[1]],
+            z=[point[2]],
+            mode='markers',
+            text=text,
+            textposition='top center',  # Position of the text relative to the markers
+            hoverinfo='text',
+            name=text,
+            marker=dict(size=8, color=color, symbol=symbol)
+        ))
 
      #Add annotations for the object names
     annotations = []
@@ -266,7 +307,14 @@ def create_3d_plot(index):
             yaxis=dict(title='Y-axis'),
             zaxis=dict(title='Z-axis')
         ),
-        margin=dict(l=0, r=0, b=0, t=50)
+        margin=dict(l=0, r=0, b=0, t=50),
+        legend=dict(
+        x=0.7,  # Horizontal position of the legend (0 to 1, left to right)
+        y=0.5,  # Vertical position of the legend (0 to 1, bottom to top)
+        bgcolor='rgba(255, 255, 255, 0.5)',  # Background color with some transparency
+        bordercolor='black',
+        borderwidth=1
+    )
     )
 
     # Create the figure
@@ -342,13 +390,14 @@ def display_trajectory():
     hlp_text=hlp
     plot_json = create_3d_plot(current_index)
     vel_json=create_2d_plot(current_index)
-    return render_template('index.html', llm_names=llm_names,plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json)
+    return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names,plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json)
 
 
 @app.route('/submit', methods=['GET', 'POST'])
 def submit():
     current_index = session['current_index']
     method1_rating = request.form.get('method1_rating')
+    llm_name=llm_used[current_index]
     # method2_rating = request.form.get('method2_rating')
     # comparison = request.form.get('comparison')
 
@@ -359,9 +408,9 @@ def submit():
 
         # Insert the data into the responses table
         c.execute('''
-            INSERT INTO responses (trajectory_index, method1_rating)
-            VALUES (?, ?)
-        ''', (current_index, method1_rating))
+            INSERT INTO responses (trajectory_index, method1_rating, llm_name)
+            VALUES (?, ?, ?)
+        ''', (current_index, method1_rating, llm_name))
 
         # Commit and close the connection
         conn.commit()
@@ -382,7 +431,7 @@ def submit():
         llm_names=llm_used[current_index]
         vel_json=create_2d_plot(current_index)
         plot_json = create_3d_plot(current_index)
-        return render_template('index.html', llm_names=llm_names, plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message)
+        return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names, plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message)
         #return index(error_message)
 
 @app.route('/thanks')
