@@ -121,27 +121,30 @@ def get_json_data(trajectory_path):
 
 def get_trajectory(data):
         # Extract the 'trajectory' key and process it into a list of tuples
-    trajectory = data.get('trajectory', [])
-    processed_trajectory = [[point['x'], point['y'], point['z'], point['velocity']] for point in trajectory]
+    # trajectory = data.get('trajectory', [])
+    processed_trajectory = data['trajectory']#[[point[0], point[1], point[2], point[3]] for point in trajectory]
         
-    return processed_trajectory
+    return np.array(processed_trajectory)
 app = Flask(__name__)
 app.secret_key = session_key # Required for session management
 
-original_trajectory_path='/home/tashmoy/IISC/HIRO/gpt/Language-models-for-trajectory-formatting-master/new_traj/temp_traj.json'
-modefied_trajectory_path="/home/tashmoy/IISC/HIRO/gpt/Language-models-for-trajectory-formatting-master/modefied_trajectory/shift_wo_obj"
+original_trajectory_path='/home/tashmoy/iisc/HIRO/GPT/Manipulator-20241207T074856Z-001/traj_list/trajectory_1.json'
+modefied_trajectory_path="/home/tashmoy/iisc/HIRO/GPT/Manipulator-20241207T074856Z-001/traj_list"
+feedback_trajectory_path="/home/tashmoy/iisc/HIRO/GPT/traj_kuka/cart/dummy"
 original_data=get_json_data(original_trajectory_path)
+# print([get_trajectory(get_json_data(modefied_trajectory_path+f"/trajectory_{i+2}.json")) for i in range(5)])
+method1_trajectories=[get_trajectory(get_json_data(modefied_trajectory_path+f"/trajectory_{i+2}.json")) for i in range(5)]
+feedback_trajectories=[get_trajectory(get_json_data(feedback_trajectory_path+f"/trajectory_{i+1}.json")) for i in range(5)]
 
-method1_trajectories=np.array([get_trajectory(get_json_data(modefied_trajectory_path+f"/modefied_data_{i+1}.json")[0]) for i in range(5)])
 # Sample 3D trajectory data (replace this with your dataset)
 num_trajectories = 5  # Number of trajectories
-original_trajectories = np.array(get_trajectory(original_data[0])) #[np.cumsum(np.random.randn(100, 3), axis=0) for _ in range(num_trajectories)]
+original_trajectories = get_trajectory(original_data) #[np.cumsum(np.random.randn(100, 3), axis=0) for _ in range(num_trajectories)]
 # method1_trajectories = [traj + np.random.normal(0, 0.5, traj.shape) for traj in original_trajectories]
 #vel = np.cos(np.linspace(0, 10,len(original_trajectories))) + np.random.normal(0, 0.1, len(original_trajectories))
 # method2_trajectories = [traj + np.random.normal(0, 1.0, traj.shape) for traj in original_trajectories]
-
+# print(original_trajectories)
 # Define some object points and their corresponding colors
-object_points = np.array([[point['x'], point['y'], point['z']] for point in original_data[0]["objects"]])#np.array([[1, 2, 1], [3, 1, 0], [0, 0, 3], [2, 3, 2], [1, 1, 1]])
+object_points = np.array([[point['x'], point['y'], point['z']] for point in original_data["objects"]])#np.array([[1, 2, 1], [3, 1, 0], [0, 0, 3], [2, 3, 2], [1, 1, 1]])
 object_colors = ['red',
 'green',
 'blue',
@@ -218,7 +221,9 @@ def create_3d_plot(index):
     # return image_base64
     # Create traces for the original trajectory and method 1 trajectory
     # Create a color scale based on the z-values
-    st_gl_points=np.array([original_trajectories[0,:],original_trajectories[-1,:],method1_trajectories[index][0,:],method1_trajectories[index][-1,:]])
+    # print(original_trajectories[:, 0])
+
+    st_gl_points=[original_trajectories[0],original_trajectories[-1],method1_trajectories[index][0],method1_trajectories[index][-1]]
     st_gl_text=["Original Start","Original End","Modefied Start","Modefied End"]
     fig = go.Figure()
     colorscale = 'Viridis'  # Choose a color scale
@@ -258,7 +263,7 @@ def create_3d_plot(index):
         # line=dict(color='green', width=4)
     ))
     # Add object points to the 3D plot with different colors
-    object_names = [point["name"] for point in original_data[0]["objects"]]
+    object_names = [point["name"] for point in original_data["objects"]]
     for obj_data,name,color in zip(object_points,object_names,object_colors):
         fig.add_trace(go.Scatter3d(
             x=[obj_data[0]],
@@ -287,7 +292,7 @@ def create_3d_plot(index):
 
      #Add annotations for the object names
     annotations = []
-    for point in original_data[0]["objects"]:
+    for point in original_data["objects"]:
         annotations.append(dict(
             x=object_points[:, 0],
             y=object_points[:, 1],
@@ -390,7 +395,8 @@ def display_trajectory():
     hlp_text=hlp
     plot_json = create_3d_plot(current_index)
     vel_json=create_2d_plot(current_index)
-    return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names,plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json)
+    feedback_plot_json=create_3d_plot(current_index)
+    return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names,plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,feedback_plot_json=feedback_plot_json)
 
 
 @app.route('/submit', methods=['GET', 'POST'])
@@ -431,7 +437,8 @@ def submit():
         llm_names=llm_used[current_index]
         vel_json=create_2d_plot(current_index)
         plot_json = create_3d_plot(current_index)
-        return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names, plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message)
+        feedback_plot_json=create_3d_plot(current_index)
+        return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names, plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message,feedback_plot_json=feedback_plot_json)
         #return index(error_message)
 
 @app.route('/thanks')

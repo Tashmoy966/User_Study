@@ -91,7 +91,14 @@
         <!-- <p><strong>LLM Used:</strong> {{ llm_names }}</p> llm_name will be dynamically passed from Flask -->
          <h2>LLM Used : {{ llm_names }}</h2>
     </div>
-
+     <!-- Dropdown Menu for Trajectory Selection -->
+    <div>
+        <label for="trajectory-select"><strong>Select Trajectory to Display:</strong></label>
+        <select id="trajectory-select">
+            <option value="modified">Modified Trajectory</option>
+            <option value="feedback">Trajectory After Feedback</option>
+        </select>
+    </div>
     <!-- Plots Section -->
     <div class="plots">
         <div id="plot-3d"></div>
@@ -100,9 +107,42 @@
     <script>
         var plotData3D = {{ plot_json | safe }};
         var plotData2D = {{ vel_json | safe }};
-        
-        Plotly.newPlot('plot-3d', plotData3D.data, plotData3D.layout);
+        var feedbackPlotData3D = {{ feedback_plot_json | safe }};
+        // Ensure layout is autosized for adaptive scaling
+        function get3DLayout(baseLayout) {
+            return {
+                ...baseLayout,
+                autosize: true,
+                scene: {
+                    ...baseLayout.scene,
+                    aspectmode: "cube", // Maintain equal scaling
+                    aspectratio: { x: 1, y: 1, z: 1 }, // Default to a cube
+                },
+            };
+        }
+        Plotly.newPlot('plot-3d', plotData3D.data, get3DLayout(plotData3D.layout));
         Plotly.newPlot('plot-2d', plotData2D.data, plotData2D.layout);
+        // Event listener for dropdown menu
+        document.getElementById('trajectory-select').addEventListener('change', function() {
+            var selectedOption = this.value;
+
+            if (selectedOption === 'modified') {
+                // Display the modified trajectory
+                Plotly.react('plot-3d', plotData3D.data, get3DLayout(plotData3D.layout));
+            } else if (selectedOption === 'feedback') {
+                // Display the trajectory after feedback
+                if (feedbackPlotData3D && feedbackPlotData3D.data) {
+                    Plotly.react('plot-3d', feedbackPlotData3D.data, get3DLayout(feedbackPlotData3D.layout));
+                } else {
+                    // If no feedback plot data is available, show the modified trajectory
+                    Plotly.react('plot-3d', plotData3D.data, get3DLayout(plotData3D.layout));
+                }
+            }
+        });
+        // Window resize event for adaptive scaling
+        window.addEventListener('resize', function () {
+            Plotly.Plots.resize('plot-3d');
+        });
     </script>
     <!-- <script>
         var plot_data = {{ plot_json|safe }};  // Load the Plotly plot data
