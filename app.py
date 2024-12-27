@@ -69,6 +69,10 @@
 
 
 from flask import Flask, render_template, request, redirect, url_for, session
+from werkzeug.security import generate_password_hash, check_password_hash
+# from flask_mysqldb import MySQL
+# import MySQLdb.cursors
+import re
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
@@ -81,21 +85,24 @@ import json
 from scipy.interpolate import CubicSpline
 import secrets
 import sqlite3
+import random as rn
 
 # Function to initialize the database
 def init_db():
     conn = sqlite3.connect('user_responses.db')
     c = conn.cursor()
     
-    # Drop the table if it already exists
-    c.execute('DROP TABLE IF EXISTS responses')
+    # # Drop the table if it already exists
+    # c.execute('DROP TABLE IF EXISTS responses')
 
     # Create table if it doesn't exist
     c.execute('''
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             trajectory_index INTEGER,
-            method1_rating INTEGER,
+            trajectory_quality_rating_without_feedback INTEGER,
+            trajectory_quality_rating_with_feedback INTEGER,
+            hlp_quality_rating INTEGER,
             llm_name TEXT  
         )
     ''')
@@ -127,13 +134,17 @@ def get_trajectory(data):
     return np.array(processed_trajectory)
 app = Flask(__name__)
 app.secret_key = session_key # Required for session management
-
+# app.config['MYSQL_HOST'] = 'localhost'
+# app.config['MYSQL_USER'] = 'root'
+# app.config['MYSQL_PASSWORD'] = 'your password'
+# app.config['MYSQL_DB'] = 'Userlogin'
+# mysql = MySQL(app)
 original_trajectory_path='/home/tashmoy/iisc/HIRO/GPT/Manipulator-20241207T074856Z-001/traj_list/trajectory_1.json'
 modefied_trajectory_path="/home/tashmoy/iisc/HIRO/GPT/Manipulator-20241207T074856Z-001/traj_list"
 feedback_trajectory_path="/home/tashmoy/iisc/HIRO/GPT/traj_kuka/cart/dummy"
 original_data=get_json_data(original_trajectory_path)
 # print([get_trajectory(get_json_data(modefied_trajectory_path+f"/trajectory_{i+2}.json")) for i in range(5)])
-method1_trajectories=[get_trajectory(get_json_data(modefied_trajectory_path+f"/trajectory_{i+2}.json")) for i in range(5)]
+modefied_trajectories=[get_trajectory(get_json_data(modefied_trajectory_path+f"/trajectory_{i+2}.json")) for i in range(5)]
 feedback_trajectories=[get_trajectory(get_json_data(feedback_trajectory_path+f"/trajectory_{i+1}.json")) for i in range(5)]
 
 # Sample 3D trajectory data (replace this with your dataset)
@@ -195,10 +206,11 @@ generated_code1=[
         "banana_position = detect_objects('banana')\nif banana_position is not None:\n    trajectory = get_trajectory()\n    modified_trajectory = []\n    min_distance = 0.2\n    speed_reduction_factor = 0.8\n    for point in trajectory:\n        x, y, z, velocity = point\n        distance = ((x - banana_position[0]) ** 2 + (y - banana_position[1]\n            ) ** 2 + (z - banana_position[2]) ** 2) ** 0.5\n        if distance < min_distance:\n            direction_vector = [x - banana_position[0], y - banana_position\n                [1], z - banana_position[2]]\n            norm = (direction_vector[0] ** 2 + direction_vector[1] ** 2 + \n                direction_vector[2] ** 2) ** 0.5\n            direction_vector = [(component / norm) for component in\n                direction_vector]\n            x = banana_position[0] + direction_vector[0] * min_distance\n            y = banana_position[1] + direction_vector[1] * min_distance\n            z = banana_position[2] + direction_vector[2] * min_distance\n            velocity *= speed_reduction_factor\n        modified_trajectory.append((x, y, z, velocity))\n    for i in range(1, len(modified_trajectory) - 1):\n        prev_point = modified_trajectory[i - 1]\n        next_point = modified_trajectory[i + 1]\n        current_point = modified_trajectory[i]\n        smoothed_x = (prev_point[0] + current_point[0] + next_point[0]) / 3\n        smoothed_y = (prev_point[1] + current_point[1] + next_point[1]) / 3\n        smoothed_z = (prev_point[2] + current_point[2] + next_point[2]) / 3\n        modified_trajectory[i\n            ] = smoothed_x, smoothed_y, smoothed_z, current_point[3]\nelse:\n    modified_trajectory = get_trajectory()\n"
     ]
 # Initialize DataFrame to store responses
-response_data = pd.DataFrame(columns=["Method", "Rating", "Comparison"])
+response_data = pd.DataFrame(columns=["trajectory_quality_rating_without_feedback", "trajectory_quality_rating_with_feedback", "hlp_quality_rating","llm_name"])
+print(len(response_data))
 # print(original_trajectories)
 # Function to create a plot and return its base64 encoding
-def create_3d_plot(index):
+def create_3d_plot(index,mod_trajectory):
     # fig = plt.figure(figsize=(6, 5))
     # ax = fig.add_subplot(111, projection='3d')
 
@@ -223,7 +235,7 @@ def create_3d_plot(index):
     # Create a color scale based on the z-values
     # print(original_trajectories[:, 0])
 
-    st_gl_points=[original_trajectories[0],original_trajectories[-1],method1_trajectories[index][0],method1_trajectories[index][-1]]
+    st_gl_points=[original_trajectories[0],original_trajectories[-1],mod_trajectory[index][0],mod_trajectory[index][-1]]
     st_gl_text=["Original Start","Original End","Modefied Start","Modefied End"]
     fig = go.Figure()
     colorscale = 'Viridis'  # Choose a color scale
@@ -248,14 +260,14 @@ def create_3d_plot(index):
 
     #trace_method1 = 
     fig.add_trace(go.Scatter3d(
-        x=method1_trajectories[index][:, 0], 
-        y=method1_trajectories[index][:, 1], 
-        z=method1_trajectories[index][:, 2],
+        x=mod_trajectory[index][:, 0], 
+        y=mod_trajectory[index][:, 1], 
+        z=mod_trajectory[index][:, 2],
         mode='lines+markers',
         name='Modefied Trajectory',
         marker=dict(
         size=3,
-        color=method1_trajectories[index][:, 3],  # Assign colors based on z values
+        color=np.random.uniform(0,40,len(mod_trajectory[index][:, 0])) if len(mod_trajectory[index][0])<4 else mod_trajectory[index][:, 3],  # Assign colors based on z values
         colorscale='RdBu',  # Set the color scale
         colorbar=dict(title='Z Value',x=0.9),
         opacity=0.8),  # Color bar title
@@ -330,7 +342,7 @@ def create_3d_plot(index):
     return graph_json
 
 # Function to create a 2D plot for plotly
-def create_2d_plot(index):
+def create_2d_plot(index,mod_trajectory):
     fig = go.Figure()
     
     # Plotting the original trajectory
@@ -345,8 +357,8 @@ def create_2d_plot(index):
     
     # Plotting the method1 trajectory
     fig.add_trace(go.Scatter(
-        x=[i+1 for i in range(len(method1_trajectories[index][:, 3]))],
-        y=method1_trajectories[index][:, 3],
+        x=[i+1 for i in range(len(smoothned_data(mod_trajectory[index][:, 0])))],
+        y=smoothned_data(np.random.uniform(0,40,len(mod_trajectory[index][:, 0]))) if len(mod_trajectory[index][0])<4 else smoothned_data(mod_trajectory[index][:, 3]),
         mode='lines+markers',
         name='Method 1',
         line=dict(color='green'),
@@ -363,9 +375,64 @@ def create_2d_plot(index):
     fig.update_layout(layout)
     return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 @app.route('/', methods=['GET', 'POST'])
+
+####Login#######
+# @app.route('/login', methods =['GET', 'POST'])
+# def login():
+#     msg = ''
+#     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
+#         username = request.form['username']
+#         password = request.form['password']
+#         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+#         cursor.execute('SELECT * FROM accounts WHERE username = % s AND password = % s', (username, password, ))
+#         account = cursor.fetchone()
+#         if account:
+#             session['loggedin'] = True
+#             session['id'] = account['id']
+#             session['username'] = account['username']
+#             msg = 'Logged in successfully !'
+#             return render_template('index.html', msg = msg)
+#         else:
+#             msg = 'Incorrect username / password !'
+#     return render_template('login.html', msg = msg)
+# ####Logout#######
+# @app.route('/logout')
+# def logout():
+#     session.pop('loggedin', None)
+#     session.pop('id', None)
+#     session.pop('username', None)
+#     return redirect(url_for('login'))
+ 
+# @app.route('/register', methods =['GET', 'POST'])
+
+# ####Register#######
+# def register():
+#     msg = ''
+#     if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form :
+#         username = request.form['username']
+#         password = request.form['password']
+#         email = request.form['email']
+#         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+#         cursor.execute('SELECT * FROM accounts WHERE username = % s', (username, ))
+#         account = cursor.fetchone()
+#         if account:
+#             msg = 'Account already exists !'
+#         elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+#             msg = 'Invalid email address !'
+#         elif not re.match(r'[A-Za-z0-9]+', username):
+#             msg = 'Username must contain only characters and numbers !'
+#         elif not username or not password or not email:
+#             msg = 'Please fill out the form !'
+#         else:
+#             cursor.execute('INSERT INTO accounts VALUES (NULL, % s, % s, % s)', (username, password, email, ))
+#             mysql.connection.commit()
+#             msg = 'You have successfully registered !'
+#     elif request.method == 'POST':
+#         msg = 'Please fill out the form !'
+#     return render_template('register.html', msg = msg)
 def index(error_message=None):
     session['current_index'] = 0  # Initialize the trajectory index
-    plot_image = create_3d_plot(session['current_index'])
+    # plot_image = create_3d_plot(session['current_index'])
     return redirect(url_for('display_trajectory'))
     #return render_template('index.html', plot_image=plot_image, current_index=session['current_index'], num_trajectories=num_trajectories, error_message=error_message)
 
@@ -393,38 +460,42 @@ def display_trajectory():
     instruction_text=inst[current_index]
     llm_names=llm_used[current_index]
     hlp_text=hlp
-    plot_json = create_3d_plot(current_index)
-    vel_json=create_2d_plot(current_index)
-    feedback_plot_json=create_3d_plot(current_index)
-    return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names,plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,feedback_plot_json=feedback_plot_json)
+    plot_json = create_3d_plot(current_index,modefied_trajectories)
+    vel_json=create_2d_plot(current_index,modefied_trajectories)
+    feedback_vel_json=create_2d_plot(current_index,feedback_trajectories)
+    feedback_plot_json=create_3d_plot(current_index,feedback_trajectories)
+    return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names,plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,feedback_plot_json=feedback_plot_json,feedback_vel_json=feedback_vel_json)
 
 
 @app.route('/submit', methods=['GET', 'POST'])
 def submit():
     current_index = session['current_index']
-    method1_rating = request.form.get('method1_rating')
+    trajectory_quality_rating_without_feedback = request.form.get('trajectory_quality_rating_without_feedback')
+    trajectory_quality_rating_with_feedback = request.form.get('trajectory_quality_rating_with_feedback')
+    hlp_quality_rating = request.form.get('hlp_quality_rating')
     llm_name=llm_used[current_index]
     # method2_rating = request.form.get('method2_rating')
     # comparison = request.form.get('comparison')
 
-    if method1_rating :  #and method2_rating and comparison
+    if trajectory_quality_rating_without_feedback and trajectory_quality_rating_with_feedback and hlp_quality_rating :  #and method2_rating and comparison
         # Connect to the database
         conn = sqlite3.connect('user_responses.db')
         c = conn.cursor()
 
         # Insert the data into the responses table
         c.execute('''
-            INSERT INTO responses (trajectory_index, method1_rating, llm_name)
-            VALUES (?, ?, ?)
-        ''', (current_index, method1_rating, llm_name))
+            INSERT INTO responses (trajectory_index, trajectory_quality_rating_without_feedback, trajectory_quality_rating_with_feedback, hlp_quality_rating, llm_name)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (current_index, trajectory_quality_rating_without_feedback, trajectory_quality_rating_with_feedback,hlp_quality_rating, llm_name))
 
         # Commit and close the connection
         conn.commit()
         conn.close()
         global response_data
-        response_data.loc[len(response_data)] = ["Method 1", method1_rating, ""]
-        # response_data.loc[len(response_data)] = ["Method 2", method2_rating, ""]
-        # response_data.loc[len(response_data)] = ["Comparison", "", comparison]
+        response_data.loc[len(response_data)] = ["trajectory_quality_rating_without_feedback", trajectory_quality_rating_without_feedback, "",""]
+        response_data.loc[len(response_data)] = ["trajectory_quality_rating_with_feedback", trajectory_quality_rating_with_feedback, "",""]
+        response_data.loc[len(response_data)] = ["hlp_quality_rating",hlp_quality_rating ,"",""]
+        response_data.loc[len(response_data)] = ["llm_name",llm_name ,"",""]
         if current_index < num_trajectories - 1:
             return redirect(url_for('next_trajectory'))  # Go to the next trajectory after submission
         else:
@@ -435,10 +506,11 @@ def submit():
         instruction_text=inst[current_index]
         hlp_text=hlp
         llm_names=llm_used[current_index]
-        vel_json=create_2d_plot(current_index)
-        plot_json = create_3d_plot(current_index)
-        feedback_plot_json=create_3d_plot(current_index)
-        return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names, plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message,feedback_plot_json=feedback_plot_json)
+        vel_json=create_2d_plot(current_index,modefied_trajectories)
+        feedback_vel_json=create_2d_plot(current_index,feedback_trajectories)
+        plot_json = create_3d_plot(current_index,modefied_trajectories)
+        feedback_plot_json=create_3d_plot(current_index,feedback_trajectories)
+        return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names, plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message,feedback_plot_json=feedback_plot_json,feedback_vel_json=feedback_vel_json)
         #return index(error_message)
 
 @app.route('/thanks')

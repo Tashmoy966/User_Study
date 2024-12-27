@@ -82,6 +82,24 @@
             cursor: pointer;
         }
     </style>
+    <style>
+        /* Style to arrange the questions side by side */
+        .rating-container {
+            display: flex;
+            justify-content: space-around; /* Evenly distribute the questions */
+            gap: 20px; /* Space between the question blocks */
+            margin-bottom: 20px; /* Add some space below the questions */
+        }
+    
+        .rating-block {
+            flex: 1; /* Equal width for each question */
+            padding: 10px;
+        }
+    
+        h3 {
+            margin-bottom: 10px; /* Space between the heading and the options */
+        }
+    </style>
 </head>
 <body>
     <h1>3D Trajectory Evaluation</h1>
@@ -107,8 +125,9 @@
     <script>
         var plotData3D = {{ plot_json | safe }};
         var plotData2D = {{ vel_json | safe }};
+        var feedbackplotData2D = {{ feedback_vel_json | safe }};
         var feedbackPlotData3D = {{ feedback_plot_json | safe }};
-        // Ensure layout is autosized for adaptive scaling
+        // Ensure layout is autosized for adaptive scaling  
         function get3DLayout(baseLayout) {
             return {
                 ...baseLayout,
@@ -129,13 +148,16 @@
             if (selectedOption === 'modified') {
                 // Display the modified trajectory
                 Plotly.react('plot-3d', plotData3D.data, get3DLayout(plotData3D.layout));
+                Plotly.react('plot-2d', plotData2D.data, plotData2D.layout);
             } else if (selectedOption === 'feedback') {
                 // Display the trajectory after feedback
                 if (feedbackPlotData3D && feedbackPlotData3D.data) {
                     Plotly.react('plot-3d', feedbackPlotData3D.data, get3DLayout(feedbackPlotData3D.layout));
+                    Plotly.react('plot-2d', feedbackplotData2D.data, feedbackplotData2D.layout);
                 } else {
                     // If no feedback plot data is available, show the modified trajectory
                     Plotly.react('plot-3d', plotData3D.data, get3DLayout(plotData3D.layout));
+                    Plotly.react('plot-2d', plotData2D.data, plotData2D.layout);
                 }
             }
         });
@@ -200,12 +222,12 @@
     </div>
 
     <form method="post" action="/submit">
-        <h3>Rate Method:</h3>
+        <!-- <h3>Rate Method:</h3>
         <input type="radio" name="method1_rating" value="1"> 1) Completely wrong<br>
         <input type="radio" name="method1_rating" value="2"> 2) Somewhat wrong<br>
         <input type="radio" name="method1_rating" value="3"> 3) Neutral<br>
         <input type="radio" name="method1_rating" value="4"> 4) Somewhat correct<br>
-        <input type="radio" name="method1_rating" value="5"> 5) Completely correct<br>
+        <input type="radio" name="method1_rating" value="5"> 5) Completely correct<br> -->
         
         <!-- <h3>Rate Method 2:</h3>
         <input type="radio" name="method2_rating" value="1"> 1) Completely wrong<br>
@@ -220,6 +242,37 @@
         <input type="radio" name="comparison" value="3"> 3) Both methods were the same<br>
         <input type="radio" name="comparison" value="4"> 4) Method 2 was a bit better<br>
         <input type="radio" name="comparison" value="5"> 5) Method 2 was much better<br> -->
+        <div class="rating-container">
+            <!-- First question block -->
+            <div class="rating-block">
+                <h3>Q1. Modified Trajectory without Feedback</h3>
+                <input type="radio" name="trajectory_quality_rating_without_feedback" value="1"> 1) Completely wrong<br>
+                <input type="radio" name="trajectory_quality_rating_without_feedback" value="2"> 2) Somewhat wrong<br>
+                <input type="radio" name="trajectory_quality_rating_without_feedback" value="3"> 3) Neutral<br>
+                <input type="radio" name="trajectory_quality_rating_without_feedback" value="4"> 4) Somewhat correct<br>
+                <input type="radio" name="trajectory_quality_rating_without_feedback" value="5"> 5) Completely correct<br>
+            </div>
+    
+            <!-- Second question block -->
+            <div class="rating-block">
+                <h3>Q2. Modified Trajectory with Feedback</h3>
+                <input type="radio" name="trajectory_quality_rating_with_feedback" value="1"> 1) Completely wrong<br>
+                <input type="radio" name="trajectory_quality_rating_with_feedback" value="2"> 2) Somewhat wrong<br>
+                <input type="radio" name="trajectory_quality_rating_with_feedback" value="3"> 3) Neutral<br>
+                <input type="radio" name="trajectory_quality_rating_with_feedback" value="4"> 4) Somewhat correct<br>
+                <input type="radio" name="trajectory_quality_rating_with_feedback" value="5"> 5) Completely correct<br>
+            </div>
+    
+            <!-- Third question block -->
+            <div class="rating-block">
+                <h3>Q3. High Level Plan Quality</h3>
+                <input type="radio" name="hlp_quality_rating" value="1"> 1) Completely wrong<br>
+                <input type="radio" name="hlp_quality_rating" value="2"> 2) Somewhat wrong<br>
+                <input type="radio" name="hlp_quality_rating" value="3"> 3) Neutral<br>
+                <input type="radio" name="hlp_quality_rating" value="4"> 4) Somewhat correct<br>
+                <input type="radio" name="hlp_quality_rating" value="5"> 5) Completely correct<br>
+            </div>
+        </div>
         <button type="submit">Submit Response</button> 
     </form>
     
