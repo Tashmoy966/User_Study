@@ -68,7 +68,7 @@
 #     app.run(debug=True)
 
 
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 # from flask_mysqldb import MySQL
 # import MySQLdb.cursors
@@ -94,16 +94,22 @@ def init_db():
     
     # # Drop the table if it already exists
     # c.execute('DROP TABLE IF EXISTS responses')
-
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+    )''')
     # Create table if it doesn't exist
     c.execute('''
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
             trajectory_index INTEGER,
             trajectory_quality_rating_without_feedback INTEGER,
             trajectory_quality_rating_with_feedback INTEGER,
             hlp_quality_rating INTEGER,
-            llm_name TEXT  
+            llm_name TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id) 
         )
     ''')
     
@@ -139,6 +145,8 @@ app.secret_key = session_key # Required for session management
 # app.config['MYSQL_PASSWORD'] = 'your password'
 # app.config['MYSQL_DB'] = 'Userlogin'
 # mysql = MySQL(app)
+
+
 original_trajectory_path='/home/tashmoy/iisc/HIRO/GPT/Manipulator-20241207T074856Z-001/traj_list/trajectory_1.json'
 modefied_trajectory_path="/home/tashmoy/iisc/HIRO/GPT/Manipulator-20241207T074856Z-001/traj_list"
 feedback_trajectory_path="/home/tashmoy/iisc/HIRO/GPT/traj_kuka/cart/dummy"
@@ -375,6 +383,60 @@ def create_2d_plot(index,mod_trajectory):
     fig.update_layout(layout)
     return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 @app.route('/', methods=['GET', 'POST'])
+def home():
+    return redirect(url_for('login'))
+# Route: Register
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        hashed_password = generate_password_hash(password)
+
+        conn = sqlite3.connect('user_responses.db')
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
+            conn.commit()
+            flash("Registration successful! Please log in.", "success")
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError:
+            flash("Username already exists. Please try a different one.", "danger")
+        finally:
+            conn.close()
+
+    return render_template('register.html')
+# Route: Login
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = sqlite3.connect('user_responses.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
+        conn.close()
+
+        if user and check_password_hash(user[1], password):
+            session['user_id'] = user[0]
+            session['username'] = username
+            flash("Login successful!", "success")
+            return redirect(url_for('dashboard'))
+        else:
+            flash("Invalid username or password.", "danger")
+
+    return render_template('login.html')
+# Route: Dashboard
+@app.route('/dashboard')
+def dashboard():
+    if 'user_id' not in session:
+        flash("Please log in to access the dashboard.", "warning")
+        return redirect(url_for('login'))
+    session['current_index'] = 0 
+    # return redirect(url_for('display_trajectory'))
+    return render_template('dashboard.html', username=session['username'])
 
 ####Login#######
 # @app.route('/login', methods =['GET', 'POST'])
@@ -430,6 +492,7 @@ def create_2d_plot(index,mod_trajectory):
 #     elif request.method == 'POST':
 #         msg = 'Please fill out the form !'
 #     return render_template('register.html', msg = msg)
+@app.route('/index', methods=['GET', 'POST'])
 def index(error_message=None):
     session['current_index'] = 0  # Initialize the trajectory index
     # plot_image = create_3d_plot(session['current_index'])
@@ -513,9 +576,18 @@ def submit():
         return render_template('index.html', generated_code=generated_code1[0],llm_names=llm_names, plot_json=plot_json, current_index=current_index, num_trajectories=num_trajectories,instruction_text=instruction_text,hlp_text=hlp_text,vel_json=vel_json,error_message=error_message,feedback_plot_json=feedback_plot_json,feedback_vel_json=feedback_vel_json)
         #return index(error_message)
 
+
+
 @app.route('/thanks')
 def thanks():
-    return "Thank you for your submission!"
+    flash("Thank you for your submission!", "info")
+    return redirect(url_for('login'))
+# Route: Logout
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("You have been logged out.", "info")
+    return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True)
