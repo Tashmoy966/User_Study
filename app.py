@@ -68,10 +68,11 @@
 #     app.run(debug=True)
 
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash,jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-# from flask_mysqldb import MySQL
-# import MySQLdb.cursors
+from flask_sqlalchemy import SQLAlchemy
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import re
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -86,10 +87,32 @@ from scipy.interpolate import CubicSpline
 import secrets
 import sqlite3
 import random as rn
+import os
+import csv
+import datetime
+
+# PostgreSQL connection configuration
+DATABASE_URL = "postgresql://username:password@localhost/yourdatabase"
+# Function to handle duplicate usernames
+def get_unique_filename(base_name, extension, folder="output"):
+    count = 1
+    unique_name = f"{base_name}.{extension}"
+    while os.path.exists(os.path.join(folder, unique_name)):
+        unique_name = f"{base_name}_{count}.{extension}"
+        count += 1
+    return unique_name
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        return conn
+    except Exception as e:
+        print(f"Error connecting to the database: {e}")
+        return None
 
 # Function to initialize the database
 def init_db():
     conn = sqlite3.connect('user_responses.db')
+    # conn = get_db_connection()
     c = conn.cursor()
     
     # # Drop the table if it already exists
@@ -104,6 +127,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
+            username TEXT,
             trajectory_index INTEGER,
             trajectory_quality_rating_without_feedback INTEGER,
             trajectory_quality_rating_with_feedback INTEGER,
@@ -138,13 +162,26 @@ def get_trajectory(data):
     processed_trajectory = data['trajectory']#[[point[0], point[1], point[2], point[3]] for point in trajectory]
         
     return np.array(processed_trajectory)
+def save_data(username,response_data):
+    folder = "output"
+    os.makedirs(folder, exist_ok=True)
+    # Prepare filenames
+    csv_filename = f"{username}.csv"
+    json_filename = f"{username}.json"
+    # Save to CSV
+    csv_path = os.path.join(folder, csv_filename)
+    response_data.to_csv(csv_path, index=False)
+    json_path = os.path.join(folder, json_filename)
+    # with open(json_path, mode='w', encoding='utf-8') as json_file:
+    #     json.dump(json_data, json_file, indent=4)
+    response_data.to_json(json_path, orient="records", indent=4)
+    message = f"Response saved successfully as {csv_filename} and {json_filename}!"
+    flash(message,"info")
+    # Clear the response_data after saving and uploading
+    response_data.drop(response_data.index, inplace=True)  # Empty the DataFrame
+    
 app = Flask(__name__)
 app.secret_key = session_key # Required for session management
-# app.config['MYSQL_HOST'] = 'localhost'
-# app.config['MYSQL_USER'] = 'root'
-# app.config['MYSQL_PASSWORD'] = 'your password'
-# app.config['MYSQL_DB'] = 'Userlogin'
-# mysql = MySQL(app)
 
 
 original_trajectory_path='/home/tashmoy/iisc/HIRO/GPT/Manipulator-20241207T074856Z-001/traj_list/trajectory_1.json'
@@ -214,7 +251,7 @@ generated_code1=[
         "banana_position = detect_objects('banana')\nif banana_position is not None:\n    trajectory = get_trajectory()\n    modified_trajectory = []\n    min_distance = 0.2\n    speed_reduction_factor = 0.8\n    for point in trajectory:\n        x, y, z, velocity = point\n        distance = ((x - banana_position[0]) ** 2 + (y - banana_position[1]\n            ) ** 2 + (z - banana_position[2]) ** 2) ** 0.5\n        if distance < min_distance:\n            direction_vector = [x - banana_position[0], y - banana_position\n                [1], z - banana_position[2]]\n            norm = (direction_vector[0] ** 2 + direction_vector[1] ** 2 + \n                direction_vector[2] ** 2) ** 0.5\n            direction_vector = [(component / norm) for component in\n                direction_vector]\n            x = banana_position[0] + direction_vector[0] * min_distance\n            y = banana_position[1] + direction_vector[1] * min_distance\n            z = banana_position[2] + direction_vector[2] * min_distance\n            velocity *= speed_reduction_factor\n        modified_trajectory.append((x, y, z, velocity))\n    for i in range(1, len(modified_trajectory) - 1):\n        prev_point = modified_trajectory[i - 1]\n        next_point = modified_trajectory[i + 1]\n        current_point = modified_trajectory[i]\n        smoothed_x = (prev_point[0] + current_point[0] + next_point[0]) / 3\n        smoothed_y = (prev_point[1] + current_point[1] + next_point[1]) / 3\n        smoothed_z = (prev_point[2] + current_point[2] + next_point[2]) / 3\n        modified_trajectory[i\n            ] = smoothed_x, smoothed_y, smoothed_z, current_point[3]\nelse:\n    modified_trajectory = get_trajectory()\n"
     ]
 # Initialize DataFrame to store responses
-response_data = pd.DataFrame(columns=["trajectory_quality_rating_without_feedback", "trajectory_quality_rating_with_feedback", "hlp_quality_rating","llm_name"])
+response_data = pd.DataFrame(columns=["Trajectory_Index","Username","trajectory_quality_rating_without_feedback", "trajectory_quality_rating_with_feedback", "hlp_quality_rating","llm_name"])
 print(len(response_data))
 # print(original_trajectories)
 # Function to create a plot and return its base64 encoding
@@ -394,6 +431,7 @@ def register():
         hashed_password = generate_password_hash(password)
 
         conn = sqlite3.connect('user_responses.db')
+        # conn = get_db_connection()
         cursor = conn.cursor()
         try:
             cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
@@ -402,6 +440,8 @@ def register():
             return redirect(url_for('login'))
         except sqlite3.IntegrityError:
             flash("Username already exists. Please try a different one.", "danger")
+        # except psycopg2.Error as e:
+        #         flash(f"Error: {e.pgerror}", 'danger')
         finally:
             conn.close()
 
@@ -414,6 +454,7 @@ def login():
         password = request.form['password']
 
         conn = sqlite3.connect('user_responses.db')
+        # conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
@@ -422,7 +463,9 @@ def login():
         if user and check_password_hash(user[1], password):
             session['user_id'] = user[0]
             session['username'] = username
-            flash("Login successful!", "success")
+            # Add login timestamp to the data
+            login_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            flash(f"Login successful! at {login_timestamp}", "success")
             return redirect(url_for('dashboard'))
         else:
             flash("Invalid username or password.", "danger")
@@ -438,60 +481,7 @@ def dashboard():
     # return redirect(url_for('display_trajectory'))
     return render_template('dashboard.html', username=session['username'])
 
-####Login#######
-# @app.route('/login', methods =['GET', 'POST'])
-# def login():
-#     msg = ''
-#     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
-#         username = request.form['username']
-#         password = request.form['password']
-#         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-#         cursor.execute('SELECT * FROM accounts WHERE username = % s AND password = % s', (username, password, ))
-#         account = cursor.fetchone()
-#         if account:
-#             session['loggedin'] = True
-#             session['id'] = account['id']
-#             session['username'] = account['username']
-#             msg = 'Logged in successfully !'
-#             return render_template('index.html', msg = msg)
-#         else:
-#             msg = 'Incorrect username / password !'
-#     return render_template('login.html', msg = msg)
-# ####Logout#######
-# @app.route('/logout')
-# def logout():
-#     session.pop('loggedin', None)
-#     session.pop('id', None)
-#     session.pop('username', None)
-#     return redirect(url_for('login'))
- 
-# @app.route('/register', methods =['GET', 'POST'])
 
-# ####Register#######
-# def register():
-#     msg = ''
-#     if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form :
-#         username = request.form['username']
-#         password = request.form['password']
-#         email = request.form['email']
-#         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-#         cursor.execute('SELECT * FROM accounts WHERE username = % s', (username, ))
-#         account = cursor.fetchone()
-#         if account:
-#             msg = 'Account already exists !'
-#         elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
-#             msg = 'Invalid email address !'
-#         elif not re.match(r'[A-Za-z0-9]+', username):
-#             msg = 'Username must contain only characters and numbers !'
-#         elif not username or not password or not email:
-#             msg = 'Please fill out the form !'
-#         else:
-#             cursor.execute('INSERT INTO accounts VALUES (NULL, % s, % s, % s)', (username, password, email, ))
-#             mysql.connection.commit()
-#             msg = 'You have successfully registered !'
-#     elif request.method == 'POST':
-#         msg = 'Please fill out the form !'
-#     return render_template('register.html', msg = msg)
 @app.route('/index', methods=['GET', 'POST'])
 def index(error_message=None):
     session['current_index'] = 0  # Initialize the trajectory index
@@ -532,6 +522,8 @@ def display_trajectory():
 
 @app.route('/submit', methods=['GET', 'POST'])
 def submit():
+    global username
+    username = session['username'].replace(" ", "_").strip()
     current_index = session['current_index']
     trajectory_quality_rating_without_feedback = request.form.get('trajectory_quality_rating_without_feedback')
     trajectory_quality_rating_with_feedback = request.form.get('trajectory_quality_rating_with_feedback')
@@ -540,25 +532,55 @@ def submit():
     # method2_rating = request.form.get('method2_rating')
     # comparison = request.form.get('comparison')
 
-    if trajectory_quality_rating_without_feedback and trajectory_quality_rating_with_feedback and hlp_quality_rating :  #and method2_rating and comparison
+    if trajectory_quality_rating_without_feedback and trajectory_quality_rating_with_feedback and hlp_quality_rating and username:  #and method2_rating and comparison
         # Connect to the database
         conn = sqlite3.connect('user_responses.db')
+        # conn = get_db_connection()
         c = conn.cursor()
 
         # Insert the data into the responses table
         c.execute('''
-            INSERT INTO responses (trajectory_index, trajectory_quality_rating_without_feedback, trajectory_quality_rating_with_feedback, hlp_quality_rating, llm_name)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (current_index, trajectory_quality_rating_without_feedback, trajectory_quality_rating_with_feedback,hlp_quality_rating, llm_name))
+            INSERT INTO responses (trajectory_index, username, trajectory_quality_rating_without_feedback, trajectory_quality_rating_with_feedback, hlp_quality_rating, llm_name)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (current_index, username,trajectory_quality_rating_without_feedback, trajectory_quality_rating_with_feedback,hlp_quality_rating, llm_name))
 
         # Commit and close the connection
         conn.commit()
         conn.close()
         global response_data
-        response_data.loc[len(response_data)] = ["trajectory_quality_rating_without_feedback", trajectory_quality_rating_without_feedback, "",""]
-        response_data.loc[len(response_data)] = ["trajectory_quality_rating_with_feedback", trajectory_quality_rating_with_feedback, "",""]
-        response_data.loc[len(response_data)] = ["hlp_quality_rating",hlp_quality_rating ,"",""]
-        response_data.loc[len(response_data)] = ["llm_name",llm_name ,"",""]
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # response_data.loc[len(response_data)] = ["Username", username, "","",""]
+        # response_data.loc[len(response_data)] = ["trajectory_quality_rating_without_feedback", trajectory_quality_rating_without_feedback, "","",""]
+        # response_data.loc[len(response_data)] = ["trajectory_quality_rating_with_feedback", trajectory_quality_rating_with_feedback, "","",""]
+        # response_data.loc[len(response_data)] = ["hlp_quality_rating",hlp_quality_rating ,"","",""]
+        # response_data.loc[len(response_data)] = ["llm_name",llm_name ,"","",""]
+        index_exists=response_data[response_data['Trajectory_Index'] == current_index]
+        if not index_exists.empty:
+        # If user exists, replace their ratings
+            response_data.loc[response_data['Trajectory_Index'] == current_index, 'trajectory_quality_rating_without_feedback'] = trajectory_quality_rating_without_feedback
+            response_data.loc[response_data['Trajectory_Index'] == current_index, 'trajectory_quality_rating_with_feedback'] = trajectory_quality_rating_with_feedback
+            response_data.loc[response_data['Trajectory_Index'] == current_index, 'hlp_quality_rating'] = hlp_quality_rating
+            response_data.loc[response_data['Trajectory_Index'] == current_index, 'llm_name'] = llm_name
+        else:
+            response_data.loc[len(response_data)] = [
+            current_index, # Trajectory Index
+            username,  # Username
+            trajectory_quality_rating_without_feedback,  # Trajectory rating without feedback
+            trajectory_quality_rating_with_feedback,  # Trajectory rating with feedback
+            hlp_quality_rating,  # HLP quality rating
+            llm_name  # LLM name
+            ]
+        # # Save to JSON
+        # json_data = {
+        #     "Trajectory_Index":current_index,
+        #     "Username": username,
+        #     "trajectory_quality_rating_without_feedback": trajectory_quality_rating_without_feedback,
+        #     "trajectory_quality_rating_with_feedback": trajectory_quality_rating_with_feedback,
+        #     "hlp_quality_rating": hlp_quality_rating,
+        #     "llm_name": llm_name
+        # }
+        
+        print(response_data)
         if current_index < num_trajectories - 1:
             return redirect(url_for('next_trajectory'))  # Go to the next trajectory after submission
         else:
@@ -581,12 +603,15 @@ def submit():
 @app.route('/thanks')
 def thanks():
     flash("Thank you for your submission!", "info")
-    return redirect(url_for('login'))
+    save_data(username,response_data)
+    return redirect(url_for('dashboard'))
 # Route: Logout
 @app.route('/logout')
 def logout():
     session.clear()
-    flash("You have been logged out.", "info")
+    # Add login timestamp to the data
+    logout_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    flash(f"You have been logged out at {logout_timestamp}.", "info")
     return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
