@@ -1,6 +1,6 @@
 Trajectory_Index,Username,trajectory_quality_rating_without_feedback,trajectory_quality_rating_with_feedback,hlp_quality_rating,llm_name
-0,Tashmoy,1,1,1,gpt-4o
-1,Tashmoy,2,2,2,llama-3.1
-2,Tashmoy,4,4,4,gemeni
-3,Tashmoy,2,3,3,calude
+0,Tashmoy,2,2,2,gpt-4o
+1,Tashmoy,3,2,2,llama-3.1
+2,Tashmoy,1,1,1,gemeni
+3,Tashmoy,3,3,1,calude
 4,Tashmoy,5,5,5,gpt-4o
