@@ -46,3 +46,8 @@ python app.py
 **e.** At last **three single-choice questions** are displayed select the option according to your preference collected from the above visualization.
 
 **f.** Click **Submit Response** to move to the next trajectory. **Next** and **Previous** buttons are also provided for flexibility over navigation during the process.
+
+Once every rating is provided plz **logout**
+
+![image](https://github.com/user-attachments/assets/696ec2a3-a877-4037-915a-78cbe10e9bb9)
+
