@@ -51,5 +51,8 @@ python app.py
 
 Once every rating is provided plz **logout**
 
+
 ![image](https://github.com/user-attachments/assets/696ec2a3-a877-4037-915a-78cbe10e9bb9)
 
+
+**Ratings** will be saved as a **.json and .csv** with **prefix** as your **username** in **output folder**.
