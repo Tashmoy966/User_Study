@@ -70,25 +70,25 @@
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash,jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_sqlalchemy import SQLAlchemy
+# from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import re
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+# import re
+# import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 import numpy as np
-import io
-import base64
+# import io
+# import base64
 import plotly.graph_objs as go
 import plotly
 import json
 from scipy.interpolate import CubicSpline
 import secrets
 import sqlite3
-import random as rn
+# import random as rn
 import os
-import csv
+# import csv
 import datetime
 
 # PostgreSQL connection configuration

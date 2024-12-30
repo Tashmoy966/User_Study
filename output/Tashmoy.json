@@ -10,25 +10,25 @@
     {
         "Trajectory_Index":1,
         "Username":"Tashmoy",
-        "trajectory_quality_rating_without_feedback":"1",
-        "trajectory_quality_rating_with_feedback":"1",
-        "hlp_quality_rating":"1",
+        "trajectory_quality_rating_without_feedback":"2",
+        "trajectory_quality_rating_with_feedback":"2",
+        "hlp_quality_rating":"2",
         "llm_name":"llama-3.1"
     },
     {
         "Trajectory_Index":2,
         "Username":"Tashmoy",
-        "trajectory_quality_rating_without_feedback":"5",
-        "trajectory_quality_rating_with_feedback":"5",
-        "hlp_quality_rating":"5",
+        "trajectory_quality_rating_without_feedback":"4",
+        "trajectory_quality_rating_with_feedback":"4",
+        "hlp_quality_rating":"4",
         "llm_name":"gemeni"
     },
     {
         "Trajectory_Index":3,
         "Username":"Tashmoy",
-        "trajectory_quality_rating_without_feedback":"4",
-        "trajectory_quality_rating_with_feedback":"4",
-        "hlp_quality_rating":"4",
+        "trajectory_quality_rating_without_feedback":"2",
+        "trajectory_quality_rating_with_feedback":"3",
+        "hlp_quality_rating":"3",
         "llm_name":"calude"
     },
     {
