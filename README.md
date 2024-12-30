@@ -5,7 +5,7 @@ User Study over Trajectory Data
 git clone https://github.com/Tashmoy966/User_Study.git
 
 # Move To the Cloned Directory
-cd /Path/User_Study
+cd /Path_to/User_Study
 
 # Install Dependencies
 pip install -r requirements.txt
