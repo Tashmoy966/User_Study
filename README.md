@@ -34,5 +34,15 @@ python app.py
 ![image](https://github.com/user-attachments/assets/8fa96d30-b209-4255-bf14-ade2d8882e12)
 
 The page information follows:
-a. LLM Used for trajectory adaptation for the respective visualization.
-b. Original, zero shot and feedback oriented trajectory can be visualized, switching between zero shot and feedback trajectories can be done using the given dropdown menu
+
+a. LLM used for trajectory adaptation for the respective visualization.
+
+b. Original, zero-shot, and feedback-oriented trajectories can be visualized, switching between zero-shot and feedback trajectories can be done using the given dropdown menu.
+
+c. Velocity profile for the trajectories.
+
+d. Info regarding the user, corresponding feedback instruction, generated high-level plan, and code is displayed.
+
+e. At last three single-choice questions are displayed select the option according to your preference collected from the above visualization.
+
+f. Click **Submit Response** to move to the next trajectory. **Next** and **Previous** buttons are also provided for flexibility over the process.
