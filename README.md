@@ -45,4 +45,4 @@ python app.py
 
 **e.** At last three single-choice questions are displayed select the option according to your preference collected from the above visualization.
 
-**f.** Click **Submit Response** to move to the next trajectory. **Next** and **Previous** buttons are also provided for flexibility over the process.
+**f.** Click **Submit Response** to move to the next trajectory. **Next** and **Previous** buttons are also provided for flexibility over navigation during the process.
